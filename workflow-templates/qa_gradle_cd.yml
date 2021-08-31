@@ -1,0 +1,78 @@
+# This is a basic workflow to help you get started with Actions
+
+name: QA Deployment
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ release/* ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  deploy_to_qa:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, linux, x64, dev]
+    environment: qa
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    
+      # clear workarea
+      - name: clear workarea
+        run: |
+          ls -l
+          rm -r *
+          ls -l
+    
+      # Download Build artifacts
+      - run echo "Pull Request Number: ${{github.event.pull_request.number}}"
+      - name: Download Build artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          # Required, workflow file name or ID
+          workflow: qa_gradle_ci.yml
+          # Optional, the status or conclusion of a completed workflow to search for
+          # Can be one of a workflow conclusion:
+          #   "failure", "success", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+          # Or a workflow status:
+          #   "completed", "in_progress", "queued"
+          workflow_conclusion: success
+          # Optional, will get head commit SHA
+          pr: ${{github.event.pull_request.number}}
+          
+      - name: List downloaded files
+        run: |
+          cd artifact
+          ls -lar
+          
+      # scp artifacts to DEPLOY_SERVER
+      - name: SCP Artifacts
+        env:
+          TARGET_PATH: ${{ secrets.DEPLOY_STAGING_DIR }}
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+          DEPLOY_LOGIN: ${{ secrets.DEPLOY_LOGIN }}
+        run: |
+          cd artifact
+          pwd
+          dos2unix ./target/* 
+          scp ./target/* $DEPLOY_LOGIN@$DEPLOY_SERVER:$TARGET_PATH
+                    
+      # ssh DEPLOY_COMMAND
+      - name: SSH Deployment Command
+        env:
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+          DEPLOY_LOGIN: ${{ secrets.DEPLOY_LOGIN }}
+          DEPLOY_COMMAND: ${{ secrets.DEPLOY_COMMAND }}
+        run: |
+          ssh $DEPLOY_LOGIN@$DEPLOY_SERVER $DEPLOY_COMMAND
+          
+      # clear workarea
+      - name: clear workarea
+        run: |
+          ls -l
+          rm -r *
+          ls -l
+          
