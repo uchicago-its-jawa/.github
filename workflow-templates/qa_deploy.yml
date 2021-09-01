@@ -43,11 +43,6 @@ jobs:
           # Optional, will get head commit SHA
           pr: ${{github.event.pull_request.number}}
           
-      - name: List downloaded files
-        run: |
-          cd artifact
-          ls -lar
-          
       # scp artifacts to DEPLOY_SERVER
       - name: SCP Artifacts
         env:
